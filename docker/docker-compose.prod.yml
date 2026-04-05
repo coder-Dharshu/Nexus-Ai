@@ -1,0 +1,56 @@
+# Production deployment with external Ollama (optional)
+version: "3.9"
+
+services:
+  nexus:
+    image: ghcr.io/your-org/nexus-ai:latest
+    container_name: nexus-ai
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - ENVIRONMENT=production
+      - WORKERS=2
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - USE_GROQ_PRIMARY=true
+      - USE_OLLAMA=${USE_OLLAMA:-false}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+    volumes:
+      - nexus_data:/app/data
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ping',timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nexus.rule=Host(`your-domain.com`)"
+      - "traefik.http.routers.nexus.entrypoints=websecure"
+      - "traefik.http.routers.nexus.tls.certresolver=letsencrypt"
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nexus-ollama
+    profiles: ["with-ollama"]
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  nexus_data:
+  ollama_data:

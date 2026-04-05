@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: nexus-ai
+    env: docker
+    dockerfilePath: ./docker/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health/ping
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 10000
+      - key: ENVIRONMENT
+        value: production
+      - key: USE_GROQ_PRIMARY
+        value: "true"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: WORKERS
+        value: "2"
+    disk:
+      name: nexus-data
+      mountPath: /app/data
+      sizeGB: 5

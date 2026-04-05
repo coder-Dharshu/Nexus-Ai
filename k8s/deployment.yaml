@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexus-ai
+  labels:
+    app: nexus-ai
+    version: "2.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nexus-ai
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: nexus-ai
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: nexus-ai
+          image: ghcr.io/your-org/nexus-ai:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8000"
+            - name: ENVIRONMENT
+              value: "production"
+            - name: WORKERS
+              value: "2"
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-secrets
+                  key: groq-api-key
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: nexus-secrets
+                  key: jwt-secret
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health/ping
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: nexus-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexus-ai
+spec:
+  selector:
+    app: nexus-ai
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nexus-ai
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "10"
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+spec:
+  tls:
+    - hosts:
+        - your-domain.com
+      secretName: nexus-tls
+  rules:
+    - host: your-domain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nexus-ai
+                port:
+                  number: 80
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nexus-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nexus-ai
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nexus-ai
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

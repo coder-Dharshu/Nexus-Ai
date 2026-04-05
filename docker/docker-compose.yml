@@ -1,0 +1,62 @@
+# Nexus AI — docker-compose.yml
+# Runs Nexus + Ollama side by side. Zero paid APIs.
+version: "3.9"
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nexus-ollama
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  nexus:
+    build: ..
+    container_name: nexus-ai
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - USE_OLLAMA=true
+      - USE_CLOUD_FALLBACK=false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: pull models on first start
+  ollama-setup:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        ollama pull llama3.2:3b &&
+        ollama pull qwen2.5:7b &&
+        echo 'Core models ready. Pull larger models manually if needed:' &&
+        echo '  ollama pull qwen2.5:72b' &&
+        echo '  ollama pull deepseek-r1:32b'
+      "
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    restart: "no"
+
+volumes:
+  ollama-data:

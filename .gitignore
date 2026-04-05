@@ -1,0 +1,61 @@
+# ── Secrets (NEVER commit these) ─────────────────────────────────────────
+.env
+*.key
+*.pem
+*.p12
+secrets/
+keychain_export/
+
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+*.egg
+
+# ── Virtual environments ──────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+.python-version
+
+# ── Data (runtime, never commit) ─────────────────────────────────────────
+data/
+!data/.gitkeep
+
+# ── Testing & coverage ────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+
+# ── Type checking ─────────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+
+# ── Linting ───────────────────────────────────────────────────────────────
+.ruff_cache/
+
+# ── IDEs ─────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Docker ───────────────────────────────────────────────────────────────
+docker/*.env
+
+# ── Playwright ────────────────────────────────────────────────────────────
+playwright-report/
+test-results/
